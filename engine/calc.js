@@ -61,6 +61,96 @@
   const SAL_START = {申:'巳',子:'巳',辰:'巳', 寅:'亥',午:'亥',戌:'亥', 巳:'寅',酉:'寅',丑:'寅', 亥:'申',卯:'申',未:'申'};
   const sal12 = (base, z) => SAL12[(ZHI.indexOf(z) - ZHI.indexOf(SAL_START[base]) + 12) % 12];
 
+  /* ── 세부 신살 (일간·월지·년지·일지 기준) ── */
+  const byDay = s => Object.fromEntries(s.split(' ').map(x => [x[0], x.slice(1)]));      // '甲亥 乙戌' → {甲:'亥', 乙:'戌'}
+  const ST = {
+    암록: byDay('甲亥 乙戌 丙申 丁未 戊申 己未 庚巳 辛辰 壬寅 癸丑'),
+    문창귀인: byDay('甲巳 乙午 丙申 丁酉 戊申 己酉 庚亥 辛子 壬寅 癸卯'),
+    태극귀인: byDay('甲子午 乙子午 丙卯酉 丁卯酉 戊辰戌丑未 己丑未戌 庚寅亥 辛寅亥 壬巳申 癸巳申'),   // 己는 辰 제외 (샘플1)
+    금여: byDay('甲辰 乙巳 丙未 丁申 戊未 己申 庚戌 辛亥 壬丑 癸寅'),
+    복성귀인: byDay('甲寅 乙丑 丙子 丁酉 戊申 己未 庚午 辛巳 壬辰 癸卯'),
+    비인살: byDay('甲酉 乙戌 丙子 丁丑 戊子 己丑 庚卯 辛辰 壬午 癸未'),
+    양인살: byDay('甲卯 乙辰 丙午 丁未 戊午 己未 庚酉 辛戌 壬子 癸丑'),
+    천주귀인: byDay('甲巳 乙午 丙巳 丁午 戊申 己酉 庚亥 辛子 壬寅 癸卯'),
+    건록: byDay('甲寅 乙卯 丙巳 丁午 戊巳 己午 庚申 辛酉 壬亥 癸子'),
+    학당귀인: byDay('甲亥 乙午 丙寅 丁酉 戊寅 己酉 庚巳 辛子 壬申 癸卯'),
+    문곡귀인: byDay('甲亥 乙子 丙寅 丁卯 戊寅 己卯 庚巳 辛午 壬申 癸酉'),
+    홍염살: byDay('甲午申 乙午申 丙寅 丁未 戊辰 己辰 庚戌 辛酉 壬子 癸申'),
+    관귀학관: byDay('甲巳 乙巳 丙申 丁申 戊亥 己亥 庚寅 辛寅 壬申 癸申'),
+    협록: byDay('甲丑卯 乙寅辰 丙辰午 丁巳未 戊辰午 己巳未 庚未酉 辛申戌 壬戌子 癸亥丑'),
+    낙정관살: byDay('甲巳 乙子 丙申 丁戌 戊卯 己巳 庚子 辛申 壬戌 癸卯'),
+    천복귀인: byDay('甲酉 乙申 丙子 丁亥 戊卯 己寅 庚午 辛巳 壬午 癸巳')      // 庚·辛·壬은 샘플 없음 🟡
+  };
+  const CHEONDEOK = {寅:'丁',卯:'申',辰:'壬',巳:'辛',午:'亥',未:'甲',申:'癸',酉:'寅',戌:'丙',亥:'乙',子:'巳',丑:'庚'};   // 월지 → 천간 또는 지지
+  const WOLDEOK = {寅:'丙',午:'丙',戌:'丙',申:'壬',子:'壬',辰:'壬',亥:'甲',卯:'甲',未:'甲',巳:'庚',酉:'庚',丑:'庚'};       // 월지 → 천간
+  const SAMJAE = {申:'寅卯辰',子:'寅卯辰',辰:'寅卯辰',寅:'申酉戌',午:'申酉戌',戌:'申酉戌',巳:'亥子丑',酉:'亥子丑',丑:'亥子丑',亥:'巳午未',卯:'巳午未',未:'巳午未'};
+  const WONJIN = {子:'未',未:'子',丑:'午',午:'丑',寅:'酉',酉:'寅',卯:'申',申:'卯',辰:'亥',亥:'辰',巳:'戌',戌:'巳'};
+  // 프로그램의 나열 순서 (정답 세트 174개 목록에서 계산, 충돌 없음)
+  const SINSAL_ORDER = ['공망','암록','천을귀인','문창귀인','태극귀인','금여','복성귀인','비인살','양인살','천주귀인','건록','학당귀인','문곡귀인',
+    '홍염살','관귀학관','협록','낙정관살','천복귀인','삼재','원진','천덕귀인','월덕귀인','현침살','고란살','도화살','백호살','괴강살','역마살','천문성','명예살'];
+
+  /** kind: 'won'(원국) | 'luck'(대운·월운) | 'year'(년운, 삼재 포함) */
+  function sinsalList(ctx, gz, kind) {
+    const g = gz[0], z = gz[1], found = {};
+    if (kind !== 'won' && ctx.kongDay.includes(z)) found.공망 = '공망';
+    if (NOBLE[ctx.dg].includes(z)) found.천을귀인 = '천을귀인';
+    for (const [name, t] of Object.entries(ST)) if (t[ctx.dg].includes(z)) found[name] = name;
+    if (kind === 'year') { const i = SAMJAE[ctx.yz].indexOf(z); if (i >= 0) found.삼재 = ['들삼재','눌삼재','날삼재'][i]; }
+    if (kind !== 'won') { const w = []; if (WONJIN[ctx.dz] === z) w.push('원진(日)'); else if (WONJIN[ctx.yz] === z) w.push('원진(年)'); /* 둘 다면 日만 (샘플5) */ if (w.length) found.원진 = w; }
+    if (CHEONDEOK[ctx.mz] === g || CHEONDEOK[ctx.mz] === z) found.천덕귀인 = '천덕귀인';
+    if (WOLDEOK[ctx.mz] === g) found.월덕귀인 = '월덕귀인';
+    if ('甲辛'.includes(g) || '卯午申'.includes(z)) found.현침살 = '현침살';
+    if (['甲寅','乙巳','丁巳','戊申','辛亥'].includes(gz)) found.고란살 = '고란살';
+    if ('子午卯酉'.includes(z)) found.도화살 = '도화살';
+    if (['甲辰','乙未','丙戌','丁丑','戊辰','壬戌','癸丑'].includes(gz)) found.백호살 = '백호살';
+    if (['庚辰','庚戌','壬辰','壬戌','戊戌'].includes(gz)) found.괴강살 = '괴강살';
+    if ('寅申巳亥'.includes(z)) found.역마살 = '역마살';
+    if ('卯未戌亥'.includes(z)) found.천문성 = '천문성';
+    if ('辰戌丑未'.includes(z)) found.명예살 = '명예살';
+    return SINSAL_ORDER.filter(k => found[k]).flatMap(k => found[k]);
+  }
+
+  /* ── 합·충·형 (프로그램 형충회합 기준표) ── */
+  const pairSet = s => s.split(' ').map(x => [x[0], x[1], x.slice(2)]);              // '甲己土' → ['甲','己','土']
+  const REL = {
+    천간합: pairSet('甲己土 乙庚金 丙辛水 丁壬木 戊癸火'),
+    천간충: pairSet('甲庚 乙辛 丙壬 丁癸 甲戊 乙己 丙庚 丁辛 戊壬 己癸'),
+    육합:   pairSet('子丑土 寅亥木 卯戌火 辰酉金 巳申水 午未火'),
+    충:     pairSet('子午 丑未 寅申 卯酉 辰戌 巳亥'),
+    형:     pairSet('寅巳 巳申 寅申 丑戌 戌未 丑未 子卯'),
+    파:     pairSet('子酉 丑辰 寅亥 卯午 巳申 戌未'),
+    해:     pairSet('子未 丑午 寅巳 卯辰 申亥 酉戌'),
+    원진:   pairSet('子未 丑午 寅酉 卯申 辰亥 巳戌'),
+    귀문관살: pairSet('辰亥 子酉 未寅 巳戌 午丑 卯申'),
+    암합:   pairSet('子戌 丑寅 卯申 午亥 寅未')
+  };
+  const SELF_PUNISH = '辰午酉亥';                                                   // 자형: 같은 지지 둘
+  const SAMHAP = [['亥卯未','木'],['寅午戌','火'],['巳酉丑','金'],['申子辰','水']]; // 가운데가 왕지
+  const BANGHAP = [['寅卯辰','木'],['巳午未','火'],['申酉戌','金'],['亥子丑','水']];
+  const AMHAP_PILLAR = ['丁亥','戊子','辛巳','壬午'];                                // 한 기둥 안의 암합
+  const matchPair = (list, a, b) => list.find(([x, y]) => (x === a && y === b) || (x === b && y === a));
+
+  /** items: [{pos:'년', g, z}, ...] → 관계 목록 [{type, chars, pos, el?}] */
+  function relations(items) {
+    const out = [], add = (type, chars, pos, el) => out.push({ type, chars, pos, ...(el ? { el } : {}) });
+    for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
+      const A = items[i], B = items[j], pos = `${A.pos}-${B.pos}`;
+      let m;
+      if ((m = matchPair(REL.천간합, A.g, B.g))) add('천간합', A.g + B.g, pos + ' 천간', m[2]);
+      if (matchPair(REL.천간충, A.g, B.g)) add('천간충', A.g + B.g, pos + ' 천간');
+      if (A.g === B.g) add('천간병존', A.g + B.g, pos + ' 천간');
+      for (const t of ['육합','충','형','파','해','원진','귀문관살','암합']) if ((m = matchPair(REL[t], A.z, B.z))) add(t === '충' ? '지지충' : t === '형' ? '지지형' : t, A.z + B.z, pos + ' 지지', m[2]);
+      if (A.z === B.z) { add('지지병존', A.z + B.z, pos + ' 지지'); if (SELF_PUNISH.includes(A.z)) add('지지형', A.z + B.z, pos + ' 지지 (자형)'); }
+      for (const [grp, el] of SAMHAP) if (A.z !== B.z && grp.includes(A.z) && grp.includes(B.z) && (A.z === grp[1] || B.z === grp[1])) add('반합', A.z + B.z, pos + ' 지지', el);
+    }
+    const zs = items.map(x => x.z);
+    for (const [grp, el] of SAMHAP) if ([...grp].every(c => zs.includes(c))) add('삼합', grp, '지지', el);
+    for (const [grp, el] of BANGHAP) if ([...grp].every(c => zs.includes(c))) add('방합', grp, '지지', el);
+    for (const it of items) if (AMHAP_PILLAR.includes(it.g + it.z)) add('암합', it.g + it.z, it.pos + ' 기둥 안');
+    // 삼합이 완성되면 그 안의 반합은 빼요
+    return out.filter(r => !(r.type === '반합' && out.some(s => s.type === '삼합' && [...r.chars].every(c => s.chars.includes(c)))));
+  }
+
   /* ── 시간 ── */
   const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', hourCycle: 'h23',
     year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });
@@ -175,24 +265,42 @@
       sal12: Object.fromEntries(P.map(p => [p.key, { byYear: sal12(byKey.year.z, p.z), byDay: sal12(byKey.day.z, p.z) }]))
     };
 
+    // 8-0) 합·충·형: 원국 안 (년·월·일·시 순서)
+    const wonItems = [['년','year'],['월','month'],['일','day'],['시','hour']].map(([pos, k]) => ({ pos, g: byKey[k].g, z: byKey[k].z }));
+    const hapchung = relations(wonItems);
+    // 운(대운·년운·월운)과 원국 사이: 운 글자가 들어간 관계만, 삼합·방합은 운 글자로 새로 완성될 때만
+    const luckRel = (gz, label) => {
+      const all = relations([{ pos: label, g: gz[0], z: gz[1] }, ...wonItems]);
+      return all.filter(r => r.pos.includes(label) || ((r.type === '삼합' || r.type === '방합') && !hapchung.some(h => h.type === r.type && h.chars === r.chars)));
+    };
+
+    // 8-1) 세부 신살: 원국 기둥별 목록과 공망 위치
+    const sctx = { dg, yz: byKey.year.z, dz: byKey.day.z, mz: byKey.month.z, kongDay: shinsal.kongmang.day };
+    P.forEach(p => {
+      p.sinsal = sinsalList(sctx, p.gz, 'won');
+      p.kongPos = p.key !== 'day' && shinsal.kongmang.day.includes(p.z) ? '[日]공망'
+                : p.key !== 'year' && shinsal.kongmang.year.includes(p.z) ? '[年]공망' : '';
+    });
+
     // 9) 대운: 방향(라이브러리), 대운수 반올림·최소 1, 세는 나이
     const yun = ecY.getYun(inp.gender, 2);
     const yunYears = yun.getStartYear() + yun.getStartMonth() / 12 + yun.getStartDay() / 360;
     const daeunsu = Math.max(1, Math.round(yunYears));
-    const dayun = yun.getDaYun().slice(1, 11).map((d, i) => {
+    const dayun = yun.getDaYun(11).slice(1, 11).map((d, i) => {
       const age = daeunsu + i * 10, startYear = sy + age - 1;
       return { ...pillarDetail(dg, d.getGanZhi(), 'daeun'), age, startYear, endYear: startYear + 9,
-               sal: { byYear: sal12(byKey.year.z, d.getGanZhi()[1]), byDay: sal12(byKey.day.z, d.getGanZhi()[1]) } };
+               sal: { byYear: sal12(byKey.year.z, d.getGanZhi()[1]), byDay: sal12(byKey.day.z, d.getGanZhi()[1]) },
+               sinsal: sinsalList(sctx, d.getGanZhi(), 'luck'), rel: luckRel(d.getGanZhi(), '대운') };
     });
 
     // 10) 년운 (작년~9년 뒤), 월운 (올해·내년 양력 1~12월, 그달 15일의 절월)
     const yearGZ = y => GAN[(y - 4 + 6000) % 10] + ZHI[(y - 4 + 6000) % 12];
-    const withSal = (o, z) => ({ ...o, sal: { byYear: sal12(byKey.year.z, z), byDay: sal12(byKey.day.z, z) } });
+    const withSal = (o, z, kind) => ({ ...o, sal: { byYear: sal12(byKey.year.z, z), byDay: sal12(byKey.day.z, z) }, sinsal: sinsalList(sctx, o.gz, kind), rel: luckRel(o.gz, kind === 'year' ? '년운' : '월운') });
     const yearly = Array.from({ length: 11 }, (_, i) => thisYear - 1 + i).map(y =>
-      withSal({ year: y, age: y - sy + 1, ...pillarDetail(dg, yearGZ(y), 'year_luck') }, yearGZ(y)[1]));
+      withSal({ year: y, age: y - sy + 1, ...pillarDetail(dg, yearGZ(y), 'year_luck') }, yearGZ(y)[1], 'year'));
     const monthly = [thisYear, thisYear + 1].flatMap(y => Array.from({ length: 12 }, (_, i) => {
       const g = Solar.fromYmd(y, i + 1, 15).getLunar().getMonthInGanZhiExact();
-      return withSal({ year: y, month: i + 1, ...pillarDetail(dg, g, 'month_luck') }, g[1]);
+      return withSal({ year: y, month: i + 1, ...pillarDetail(dg, g, 'month_luck') }, g[1], 'luck');
     }));
 
     // 11) 알림
@@ -215,11 +323,11 @@
       gz, P, dayGan: dg, yinyang, elements, groups,
       strength: { label: strength, deukryeong, deukji, deukse, seCount },
       yong: { group: yongGroup, fiveGods, fiveGodsHan: Object.fromEntries(Object.entries(fiveGods).map(([k, v]) => [k, EL_HAN[v]])) },
-      shinsal, daeunsu, dayun, yearly, monthly, flags,
+      shinsal, hapchung, daeunsu, dayun, yearly, monthly, flags,
       age_now: thisYear - sy + 1
     };
   }
 
-  root.SajuCalc = { calculate, tenGod, stage, nayin, kongmang, sal12, HIDE, NOBLE, KO, EL_HAN, RULE_VERSION,
+  root.SajuCalc = { calculate, relations, sinsalList, SINSAL_ORDER, tenGod, stage, nayin, kongmang, sal12, HIDE, NOBLE, KO, EL_HAN, RULE_VERSION,
                     SIJIN: ZHI.split('').map((z, i) => ({ i, z, label: `${KO[z]}시 (${['23:30~01:29','01:30~03:29','03:30~05:29','05:30~07:29','07:30~09:29','09:30~11:29','11:30~13:29','13:30~15:29','15:30~17:29','17:30~19:29','19:30~21:29','21:30~23:29'][i]})` })) };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -23,6 +23,7 @@
 <script src="content/ch10.js"></script>
 <script src="content/actions.js"></script>
 <script src="content/summary.js"></script>
+<script src="content/sinsal.js"></script>
 <style>
 :root{
   --bg:#12101c; --bg2:#1b1828; --card:#221e33; --line:#352f4d;
@@ -518,8 +519,50 @@ const STRENGTH_NOTE = {
   강변약: '{n}님 사주는 <b>강변약</b>이에요. 태어난 달의 힘은 얻었지만 태어난 날과 나머지 글자에서 힘을 받지 못해, 겉보기엔 강해 보여도 실제로는 약한 쪽에 가까운 사주예요. 그래서 아래 신약 사주의 이야기를 따라 읽어주세요.',
   극신강: '{n}님 사주는 나를 돕는 힘이 아주 강한 <b>극신강</b>이에요. 아래 신강 사주의 이야기가 {n}님에게는 더 진하게 해당돼요.'
 };
+/* ── 신살·합충형 문장 (content/sinsal.js, 엔진 결과 기준) ── */
+const HAN2KO = {木:'목(木)',火:'화(火)',土:'토(土)',金:'금(金)',水:'수(水)'};
+const wonSinsal = () => new Set(R.calc.P.flatMap(p => p.sinsal));
+const relHas = (types, posPart) => R.calc.hapchung.filter(r => types.includes(r.type) && (!posPart || r.pos.includes(posPart)));
+function relText(r){
+  const t = r.type === '암합' && r.pos.includes('기둥 안') ? '암합기둥' : r.type, tpl = C.ss.hap[t];
+  if (!tpl) return '';
+  const [a, b] = r.pos.split(' ')[0].split('-');
+  return tpl.replace('{a}', C.ss.pos[a] || '').replace('{b}', C.ss.pos[b] || '').replaceAll('{chars}', r.chars).replaceAll('{el}', r.el ? HAN2KO[r.el] : '');
+}
+// 2장: 합·충 최대 3개 (종류별 하나, 일간·일지가 걸린 것 우선)
+function hapSection(){
+  const rels = R.calc.hapchung.filter(r => C.ss.hapOrder.includes(r.type))
+    .sort((x, y) => C.ss.hapOrder.indexOf(x.type) - C.ss.hapOrder.indexOf(y.type) || (+y.pos.includes('일')) - (+x.pos.includes('일')));
+  const picked = []; for (const r of rels) if (!picked.some(p => p.type === r.type) && picked.length < 3) picked.push(r);
+  return picked.length ? H('사주 안의 합과 충') + P_(C.ss.hapIntro) + picked.map(r => P_(relText(r))).join('') : '';
+}
+// 운(대운·년운): 일지·월지와의 합충, 새로 완성되는 삼합·방합, 귀인·역마·도화·공망·삼재
+let LUCK_BIG = null;   // 9장 안에서 삼합·방합 설명은 한 번만
+function luckLines(item, label, max){
+  const L = C.ss.luck, rel = item.rel, out = [];
+  const on = (types, pos) => rel.find(r => types.includes(r.type) && r.pos.includes(pos));
+  if (on(['지지충'], label + '-일')) out.push(L.일지충);
+  else if (on(['육합','반합'], label + '-일')) out.push(L.일지합);
+  if (on(['지지충'], label + '-월')) out.push(L.월지충);
+  const big = rel.find(r => r.type === '삼합' || r.type === '방합');
+  if (big && !(label === '년운' && LUCK_BIG)) { out.push(L[label === '년운' ? big.type + '_년' : big.type].replaceAll('{chars}', big.chars).replaceAll('{el}', HAN2KO[big.el])); if (label === '년운') LUCK_BIG = true; }
+  for (const k of ['들삼재','눌삼재','날삼재','천을귀인','역마살','도화살','공망']) if (item.sinsal.includes(k)) out.push(L[k]);
+  return out.slice(0, max).map(P_).join('');
+}
+
+// 1장: 대표 신살. 첫 줄에 한 번에 소개하고, 문단은 "○○은 …"으로 바로 설명 (같은 문장 시작 반복 방지)
+function coreSinsal(){
+  const has = wonSinsal(), list = C.ss.order.filter(k => has.has(k)).slice(0, 4);
+  if (!list.length) return '';
+  const names = list.map(k => '<b>' + k + '</b>').join(', ');
+  const intro = C.ss.coreIntro.replace('{list}', names) + iyeyo(list[list.length - 1]).slice(list[list.length - 1].length) + '.';
+  return H('내 사주의 특별한 별') + P_(intro) + list.map(k => {
+    const rest = C.ss.core[k].replace(/^\{n\}님 사주에는 <b>[^<]+<\/b>(이|가) 있어요\. /, '');
+    return P_('<b>' + k + '</b>' + josa(k, '은', '는').slice(k.length) + ' ' + rest);
+  }).join('');
+}
 function buildChapters(){
-  USED = new Set();
+  USED = new Set(); LUCK_BIG = null;
   const n = R.name, s = R.strong ? 'hi' : 'lo', gc = R.gc;
   const c1 = C.ch1, c2 = C.ch2, c3 = C.ch3, c4 = C.ch4, c5 = C.ch5, c6 = C.ch6, c7 = C.ch7, c8 = C.ch8, c9 = C.ch9, c10 = C.ch10;
   const zero = Object.keys(R.cnt).filter(k => R.cnt[k] === 0);
@@ -545,7 +588,7 @@ function buildChapters(){
        ${P_(c5.m_intro)}${paras(c5.m_level[lvP])}
        ${H('사랑하는 방식')}${P_(MAR(c5.day[R.dg]))}${P_(c5.m_remember[R.me])}
        ${H('반복되기 쉬운 패턴')}${paras(c5.pattern[R.dom].map(MAR))}
-       ${H('배우자와 잘 맞는 방식')}${P_(c5.m_spouse[EL[R.dz]])}${R.dohwa ? P_(c5.m_dohwa) : ''}
+       ${H('배우자와 잘 맞는 방식')}${P_(c5.m_spouse[EL[R.dz]])}${R.dohwa ? P_(c5.m_dohwa) : ''}${wonSinsal().has('홍염살') ? P_(C.ss.love.홍염살) : ''}${relHas(['지지충'], '일').some(r => r.pos.includes('지지')) ? P_(C.ss.love.일지충) : relHas(['육합','반합'], '일').length ? P_(C.ss.love.일지합) : ''}${relHas(['원진'], '일').length ? P_(C.ss.love.일지원진) : ''}
        ${H('다툼이 생겼을 때')}${P_(MAR(c5.fight[R.me]))}
        ${H('관계에 변화가 오는 해')}${P_(loveY.length ? c5.m_timing_has.replace('{list}', fmtYears(loveY)) : c5.m_timing_none)}
        ${H('가정과 나의 균형')}${P_(c5.m_balance[s])}${P_(c5.m_ask)}${P_(c5.m_end)}${H(TIP)}${P_(C.act.c5m)}`
@@ -553,7 +596,7 @@ function buildChapters(){
        ${P_(c5.intro)}${paras(R.love)}${P_(c5.level2[lvP])}
        ${H('사랑하는 방식')}${P_(c5.day[R.dg])}
        ${H('반복되기 쉬운 패턴')}${paras(c5.pattern[R.dom])}
-       ${H('잘 맞는 상대')}${P_(c5.spouse[EL[R.dz]])}${R.dohwa ? P_(c5.dohwa) : ''}
+       ${H('잘 맞는 상대')}${P_(c5.spouse[EL[R.dz]])}${R.dohwa ? P_(c5.dohwa) : ''}${wonSinsal().has('홍염살') ? P_(C.ss.love.홍염살) : ''}${relHas(['지지충'], '일').some(r => r.pos.includes('지지')) ? P_(C.ss.love.일지충) : relHas(['육합','반합'], '일').length ? P_(C.ss.love.일지합) : ''}${relHas(['원진'], '일').length ? P_(C.ss.love.일지원진) : ''}
        ${H('다툼이 생겼을 때')}${P_(c5.fight[R.me])}
        ${H('인연이 오는 해')}${P_(loveY.length ? c5.timing_has.replace('{list}', fmtYears(loveY)) : c5.timing_none)}
        ${H('연애운을 높이는 습관')}${P_(c5.boost[R.yEl])}${P_(c5.remember[R.me])}${paras(c5.ask[lvP])}${P_(c5.end)}${H(TIP)}${P_(C.act.c5)}`;
@@ -566,6 +609,7 @@ function buildChapters(){
        ${H('사회 속의 나 · 태어난 달의 땅')}${P_(c1.month[R.P[2].z])}
        ${H('가장 강한 기운 · ' + GK[R.dom])}${paras(c1.grp[R.dom])}
        ${H('뿌리, 그리고 나이 들수록')}${P_(c1.root[rootG])}${P_(c1.later[laterG])}
+       ${coreSinsal()}
        ${H('강점과 숙제')}${paras(c1.sw[R.dg])}
        ${H('처음 질문에 대한 답')}${P_(c1.recap[ANS >= 2 ? 'many' : 'few'].replace('{y}', ANS))}
        ${H(TIP)}${P_(C.act.c1.replace('{img}', C.meta[R.dg].img))}`],
@@ -575,20 +619,21 @@ function buildChapters(){
        ${H(R.strengthLabel + ' 사주')}${STRENGTH_NOTE[R.strengthLabel] ? P_(STRENGTH_NOTE[R.strengthLabel]) : ''}${paras([c2.strong[s].p[0], c2.strong[s].p[1], c2.strong[s].p[3]])}${P_(c2.life[s][0])}
        ${H('나를 돕는 기운 · ' + ELK[R.yEl])}${paras(c2.yong[R.yEl].slice(0,2))}${P_(c2.time[R.yEl])}${P_(c2.lack[R.yEl])}
        ${H('넘치는 기운과 비어 있는 기운')}${P_(c2.excess[R.excess])}${zero.map(k => P_(c1.none[k])).join('')}
+       ${hapSection()}
        ${H(TIP)}${P_(C.act.c2.replace('{yong}', ELK[R.yEl]).replace('{habit}', L.habit))}`],
     ['c3','03','재물운', R.money.type,
       `${KB([`재물 유형 · <b>${R.money.type}</b>`, `재물 기운이 들어오는 때 · ${moneyT.length ? fmtDayun(moneyT) : moneyY.length ? fmtYears(moneyY) : '인생 전반에 고르게 흐르는 구조'}`, `맞는 습관 · ${['좋아하는 일에 깊이 들어가기','의지 대신 자동화','들어오자마자 지키는 장치'][lvJ]}`])}
        ${paras(R.money.p)}${paras(c3.deep[lvJ])}
        ${H('돈을 쓰는 방식')}${paras(c3.el[R.me])}${P_(c3.mood[R.me])}
        ${P_(gc.sik ? c3.sik : c3.nosik)}${gc.bi >= 3 ? P_(c3.bi) : ''}
-       ${H('재물이 들어오는 때')}${P_(moneyTxt)}${P_(c3.invest[s])}
+       ${H('재물이 들어오는 때')}${P_(moneyTxt)}${C.ss.moneyOrder.filter(k => wonSinsal().has(k)).slice(0, 2).map(k => P_(C.ss.money[k])).join('')}${P_(c3.invest[s])}
        ${H('나에게 맞는 재물 습관')}${paras(c3.habit[lvJ])}
        ${H('매달 점검하는 재물 체크리스트')}${paras(c3.check[lvJ])}${P_(c3.grow)}${P_(c3.end)}
        ${H(TIP)}${P_(C.act.c3)}`],
     ['c4','04','직업 · 적성운', job.type,
       `${KB([`일 유형 · <b>${job.type}</b>`, `잘 맞는 분야 · ${job.fit.slice(0,2).join(', ')}`, `커리어가 움직이는 때 · ${jobT.length ? fmtDayun(jobT) : jobY.length ? fmtYears(jobY) : '한 분야에서 깊어지는 구조'}`])}
        ${paras(job.p.slice(0,3))}${H('잘 맞는 분야')}<ul class="inc">${job.fit.map(f => `<li>· ${f}</li>`).join('')}</ul>
-       ${H('일터에서 빛나는 순간')}${P_(c4.shine[R.dg])}
+       ${H('일터에서 빛나는 순간')}${P_(c4.shine[R.dg])}${(() => { const js = C.ss.jobOrder.filter(k => wonSinsal().has(k)).slice(0, 3); return js.length ? P_(C.ss.jobIntro + js.map(k => C.ss.job[k]).join(' ')) : ''; })()}${relHas(['지지충'], '월').length ? P_(C.ss.monthChung) : ''}
        ${H('이런 신호가 오면 쉬어 가세요')}${paras(c4.burn[R.dom])}
        ${H('일과 돈의 연결')}${P_(c4.money[R.dom])}
        ${H('커리어가 움직이는 때')}${P_(jobTxt)}
@@ -600,7 +645,7 @@ function buildChapters(){
        ${H('친구 · 동료')}${paras(c6.bi[R.lv(gc.bi)].slice(0,2))}${P_(c6.el[R.me])}
        ${H('가족 안의 나')}${P_(c6.family[R.dom])}
        ${H('윗사람 · 조직')}${P_(c6.gwan[R.lv(gc.gwan)])}
-       ${H('나를 돕는 귀인')}${P_(gc.in ? c6.in.has : c6.in.none)}
+       ${H('나를 돕는 귀인')}${P_(gc.in ? c6.in.has : c6.in.none)}${(() => { const g = ['천을귀인','천덕귀인','월덕귀인'].filter(k => wonSinsal().has(k)); return g.length ? P_(C.ss.people.귀인.replace('{list}', g.map(k => '<b>' + k + '</b>').join('·'))) : ''; })()}${['원진','귀문관살','지지형'].filter(t => relHas([t]).length).slice(0, 2).map(t => P_(C.ss.people[t])).join('')}
        ${H('상처받았을 때')}${P_(c6.hurt[s])}
        ${H('오래가는 관계의 비밀')}${P_(c6.secret[R.dom])}
        ${H('관계 처방')}${paras(c6.rx[R.me].slice(1))}
@@ -609,7 +654,7 @@ function buildChapters(){
       `${KB([`아껴줄 곳 · <b>${c7.weak[R.weak].organ}</b>`, `스트레스 반응 · ${{wood:'화가 쌓여 몸이 굳는 편',fire:'감정이 요동치고 잠이 얕아지는 편',earth:'생각이 많아지고 소화가 막히는 편',metal:'더 완벽해지려 긴장하는 편',water:'안으로 숨고 기운이 가라앉는 편'}[R.me]}`, `맞는 운동 · ${{wood:'몸을 늘리고 뻗는 운동',fire:'땀 흘리며 즐겁게 하는 운동',earth:'규칙적이고 안정적인 운동',metal:'호흡에 집중하는 운동',water:'부드럽게 흐르는 운동'}[R.yEl]}`])}
        ${P_(c7.intro)}${H('아껴줘야 할 곳 · ' + c7.weak[R.weak].organ)}${paras(c7.weak[R.weak].p)}
        ${H('식습관')}${P_(c7.food[R.weak])}
-       ${H('스트레스를 받을 때')}${P_(c7.stress[R.me])}
+       ${H('스트레스를 받을 때')}${P_(c7.stress[R.me])}${C.ss.healthOrder.filter(k => k === '귀문관살' ? relHas(['귀문관살']).length : wonSinsal().has(k)).slice(0, 2).map(k => P_(C.ss.health[k])).join('')}
        ${H('잠과 휴식')}${P_(c7.sleep[R.me])}
        ${H('나에게 맞는 운동')}${P_(c7.move[R.yEl])}
        ${H('건강 체크리스트')}${paras(c7.list[R.weak])}${P_(c7.season[R.weak])}
@@ -619,7 +664,7 @@ function buildChapters(){
        ${paras(c8.intro.map(t => t.replace('{start}', R.dayun[0].age)))}
        <table class="tbl">${R.dayun.filter(d => d.sy <= R.nowY + 30).map(d => `<tr class="${d.now?'now':''}"><td>${d.age}세~<br>${d.ko} 대운${d.now?'<br>· 지금':''}${d.yong?' ★':''}</td>
         <td><b>${c8.season[d.g].name}</b><br>${c8.long[d.g]}</td></tr>`).join('')}</table>
-       ${H('지금 지나는 계절 · ' + R.cur.ko + ' 대운')}${paras(c8.now[R.cur.g])}${P_(c8.todo[R.cur.g])}${P_(peakTxt)}
+       ${H('지금 지나는 계절 · ' + R.cur.ko + ' 대운')}${paras(c8.now[R.cur.g])}${P_(c8.todo[R.cur.g])}${luckLines(R.calc.dayun.find(d => d.gz === R.cur.gz), '대운', 3)}${P_(peakTxt)}
        ${next ? H('다음 계절로 넘어가는 때') + P_(c8.change.replace('{year}', next.sy).replace('{age}', next.age)) : ''}
        ${H('대운을 잘 지나는 법')}${paras(c8.ride[s])}
        ${R.past ? H('지나온 계절 · ' + R.past.ko + ' 대운') + P_(c8.past[R.past.g]) : H('첫 번째 계절') + P_(c8.past_none)}${P_(c8.end)}
@@ -628,7 +673,7 @@ function buildChapters(){
       `${KB([0,1,2].map(i => { const y = R.nowY + i, gz = yearGZ(y); return `${y}년 · ${c9.stem[grp(R.me, EL[gz[0]])].kw}`; }))}
        ${P_(c9.intro)}${[0,1,2].map(i => { const y = R.nowY + i, gz = yearGZ(y), sg = grp(R.me, EL[gz[0]]), st = c9.stem[sg], tp = c9.tip[sg];
          const yong = EL[gz[0]] === R.yEl || EL[gz[1]] === R.yEl;
-         return `${H(`${y}년 ${KO[gz[0]]}${KO[gz[1]]}년 · ${st.kw}`)}${i > 0 && grp(R.me, EL[yearGZ(y-1)[0]]) === sg ? P_(c9.cont[sg][0]) : P_(st.p)}${P_(c9.branch[grp(R.me, EL[gz[1]])])}${P_(c9.half[sg])}
+         return `${H(`${y}년 ${KO[gz[0]]}${KO[gz[1]]}년 · ${st.kw}`)}${i > 0 && grp(R.me, EL[yearGZ(y-1)[0]]) === sg ? P_(c9.cont[sg][0]) : P_(st.p)}${P_(c9.branch[grp(R.me, EL[gz[1]])])}${P_(c9.half[sg])}${luckLines(R.calc.yearly.find(x => x.year === y), '년운', 2)}
            ${yong ? P_(c9.yong.replace('{el}', ELK[R.yEl])) : ''}${P_(`이 해의 한 줄 조언: <b>${tp.go}</b>에 힘을 실어보세요. 대신 <b>${tp.care}</b>${josa(tp.care,'은','는').slice(tp.care.length)} 조심하면 좋아요.`)}`; }).join('')}
        ${H('3년의 전략')}${P_(c9.key.replace('{k1}', kw(R.nowY)).replace('{k2}', kw(R.nowY+1)).replace('{k3}', kw(R.nowY+2)))}${P_(c9.strat[s])}${P_(c9.newyear[s][0])}
        ${H(TIP)}${P_(C.act.c9.replace('{y1}', R.nowY).replace('{y2}', R.nowY+1).replace('{y3}', R.nowY+2))}`],
