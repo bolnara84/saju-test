@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.7.3/lunar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/korean-lunar-calendar@0.3.6/dist/korean-lunar-calendar.min.js"></script>
-<script src="engine/calc.js"></script>
+<script src="engine/saju-analyzer.js"></script>
 <script src="content/preview.js"></script>
 <script src="content/ch01.js"></script>
 <script src="content/ch02.js"></script>
@@ -374,7 +374,7 @@ $('f').onsubmit = e => {
   if (!y) { ferr('생년월일을 입력해 주세요.'); return; }
   const tm = document.querySelector('[name=tm]:checked').value;
 
-  // 계산 엔진 (사주계산_규칙서 v2): -30분·서머타임 보정 → 사주팔자·강약·용신·대운
+  // 사주 분석기 (../사주분석기/saju-analyzer.js, 규칙: 사주분석기_규칙서.md)
   let calc;
   try {
     calc = SajuCalc.calculate({ calendar: cal, y, m, d, gender,
