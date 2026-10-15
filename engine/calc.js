@@ -1,4 +1,4 @@
-/* 사주 계산 엔진 v2.0 — 사주계산_규칙서.md (v2) 1층·2층
+/* 사주 계산 엔진 v2.2 — 사주계산_규칙서.md (v2) 1층·2층
    기준: 국내 만세력 프로그램 방식 (샘플 7건으로 검증)
    - 시간: 기록 시각 → 서머타임이면 -60분 → 표준시가 동경 135°(UTC+9)인 시기면 -30분 (127°30′ 기준)
    - 일주: 보정 시각 23:00부터 다음 날 (라이브러리 sect 1)
@@ -7,7 +7,7 @@
    - 나이: 세는 나이 / 대운수: 반올림, 최소 1
    필요: lunar-javascript@1.7.3 (Solar, Lunar), korean-lunar-calendar@0.3.6 (KoreanLunarCalendar) */
 (function (root) {
-  const RULE_VERSION = '2.0';
+  const RULE_VERSION = '2.2';
   const LIBS = 'lunar-javascript@1.7.3, korean-lunar-calendar@0.3.6';
 
   /* ── 기본 표 ── */
