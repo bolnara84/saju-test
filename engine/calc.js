@@ -1,4 +1,4 @@
-/* 사주 계산 엔진 v2.3 — 사주계산_규칙서.md (v2) 1층·2층
+/* 사주 계산 엔진 v2.4 — 사주계산_규칙서.md (v2) 1층·2층
    기준: 국내 만세력 프로그램 방식 (샘플 7건으로 검증)
    - 시간: 기록 시각을 표준시로 보고 (서머타임 보정 안 함) → 표준시가 동경 135°(UTC+9)인 시기면 -30분 (127°30′ 기준)
    - 일주: 보정 시각 23:00부터 다음 날 (라이브러리 sect 1)
@@ -7,7 +7,7 @@
    - 나이: 세는 나이 / 대운수: 반올림, 최소 1
    필요: lunar-javascript@1.7.3 (Solar, Lunar), korean-lunar-calendar@0.3.6 (KoreanLunarCalendar) */
 (function (root) {
-  const RULE_VERSION = '2.3';
+  const RULE_VERSION = '2.4';
   const LIBS = 'lunar-javascript@1.7.3, korean-lunar-calendar@0.3.6';
 
   /* ── 기본 표 ── */
@@ -227,6 +227,12 @@
     // 4) 일주·시주: 보정 시각, 23시부터 다음 날 (sect 1)
     const ecD = solarOf(corrected).getLunar().getEightChar(); ecD.setSect(1);
     const gz = { year: ecY.getYear(), month: ecY.getMonth(), day: ecD.getDay(), hour: ecD.getTime() };
+    // 다른 만세력과 시주가 달라질 수 있는 경우: 서머타임 기간(서머타임 적용 시 -60분), 표준시 127°30′ 시기(그래도 -30분 하는 경우)
+    const altOf = min => { const e = solarOf(corrected - min * 60000).getLunar().getEightChar(); e.setSect(1); return { day: e.getDay(), hour: e.getTime() }; };
+    const alt = mode !== 'time' ? null
+      : dst ? { reason: 'dst', ...altOf(60) }
+      : stdOff === 510 ? { reason: 'std127', ...altOf(30) } : null;
+    const altDiffers = !!alt && (alt.hour !== gz.hour || alt.day !== gz.day);
     const dg = gz.day[0];
     const P = ['hour','day','month','year'].map(k => pillarDetail(dg, gz[k], k));
     const byKey = Object.fromEntries(P.map(p => [p.key, p]));
@@ -310,7 +316,7 @@
     const lc = solarOf(instant + 8 * 3600000).getLunar();
     const jieMin = Math.min(Math.abs(solarOf(instant + 8 * 3600000).subtractMinute(lc.getPrevJie().getSolar())),
                             Math.abs(lc.getNextJie().getSolar().subtractMinute(solarOf(instant + 8 * 3600000))));
-    const flags = { time_mode: mode, hour_boundary: nearHour, term_boundary: jieMin <= 120,
+    const flags = { time_mode: mode, alt_pillar: altDiffers ? alt : null, hour_boundary: nearHour, term_boundary: jieMin <= 120,
                     dst_nonexistent_time: false, dst_ambiguous_time: false,
                     strength_rule_verified: verifiedStrength, yong_rule_verified: !strong || (strength === '신강' && (groups.관성 > 0 || groups.식상 > 0)) };
 

@@ -338,6 +338,15 @@ document.querySelectorAll('[name=tm]').forEach(r => r.onchange = () => { const v
   $('time').hidden = v !== 'time'; $('sijin').hidden = v !== 'sijin'; });
 
 /* 계산 기준과 알림 문구 */
+// 다른 만세력과 시주가 다르게 나올 수 있는 사람에게만 보이는 안내 (서머타임 기간, 1954~61년 표준시 시기)
+function altNotice(){
+  const a = R.calc.flags.alt_pillar; if (!a) return '';
+  const what = a.day !== R.calc.gz.day ? `일주와 시주가 ${a.day}일 ${a.hour}시` : `시주가 ${a.hour}(${KO[a.hour[0]]}${KO[a.hour[1]]})시`;
+  const why = a.reason === 'dst'
+    ? `${R.name}님이 태어난 날은 서머타임이 있던 시기예요. 이 풀이는 서머타임을 적용하지 않은 기준이라, 서머타임을 적용하는 만세력에서는 ${what}로 다르게 나올 수 있어요.`
+    : `${R.name}님이 태어난 시기는 한국 표준시 기준이 지금과 달랐어요. 그래서 만세력에 따라 ${what}로 다르게 나올 수 있어요.`;
+  return `<div class="notice">${why}</div>`;
+}
 // 계산 기준·기록은 고객 화면에 보이지 않고, 주소에 ?admin=1 이 있을 때만 보여요 (문의 확인용)
 const ADMIN = /[?&]admin=1/.test(location.search);
 function calcBasis(){
@@ -445,7 +454,7 @@ function renderPreview(){
   USED = null;
   const n = R.name, meta = C.meta[R.dg];
   $('rTitle').textContent = `${n}님의 사주 원국`;
-  $('rSub').innerHTML = `양력 ${R.calc.input.solar_date} · ${R.calc.gz.day}(${KO[R.dg]}${KO[R.dz]})일주${ADMIN ? '<br>' + calcBasis() + noticeHTML() : ''}`;
+  $('rSub').innerHTML = `양력 ${R.calc.input.solar_date} · ${R.calc.gz.day}(${KO[R.dg]}${KO[R.dz]})일주${altNotice()}${ADMIN ? '<br>' + calcBasis() + noticeHTML() : ''}`;
   $('pillars').innerHTML = pillarsHTML();
   $('bars').innerHTML = barsHTML();
 
@@ -722,7 +731,7 @@ function renderReport(){
   USED = null;
   $('rep').innerHTML = `
     <div class="cover"><span class="badge">종합운세 · 인생 설명서</span>
-      <h1>${n}님의 이야기</h1><p class="stage-s">${R.calc.input.solar_date} · ${R.calc.gz.day}(${KO[R.dg]}${KO[R.dz]})일주${R.noTime?' · 시주 추정':''}</p></div>
+      <h1>${n}님의 이야기</h1><p class="stage-s">${R.calc.input.solar_date} · ${R.calc.gz.day}(${KO[R.dg]}${KO[R.dz]})일주${R.noTime?' · 시주 추정':''}</p>${altNotice()}</div>
     ${ADMIN ? `<div class="card" style="font-size:13px;color:var(--sub)"><b>계산 기준</b><br>${calcBasis()}${noticeHTML()}
       <details class="rec"><summary>계산 기록 보기</summary><pre>${JSON.stringify({rule_version:R.calc.rule_version, libraries:R.calc.libraries, input:R.calc.input, time:R.calc.time, pillars:R.calc.gz, strength:R.calc.strength, yong:R.calc.yong.fiveGodsHan, daeunsu:R.calc.daeunsu, flags:R.calc.flags}, null, 2)}</pre></details></div>` : ''}
     <nav class="nav">${chapters.map(c => `<a href="#${c[0]}">${c[1]} ${c[2]}</a>`).join('')}<a href="#sum">요약</a></nav>
