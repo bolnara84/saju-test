@@ -1,13 +1,13 @@
-/* 사주 계산 엔진 v2.2 — 사주계산_규칙서.md (v2) 1층·2층
+/* 사주 계산 엔진 v2.3 — 사주계산_규칙서.md (v2) 1층·2층
    기준: 국내 만세력 프로그램 방식 (샘플 7건으로 검증)
-   - 시간: 기록 시각 → 서머타임이면 -60분 → 표준시가 동경 135°(UTC+9)인 시기면 -30분 (127°30′ 기준)
+   - 시간: 기록 시각을 표준시로 보고 (서머타임 보정 안 함) → 표준시가 동경 135°(UTC+9)인 시기면 -30분 (127°30′ 기준)
    - 일주: 보정 시각 23:00부터 다음 날 (라이브러리 sect 1)
    - 연주·월주: 실제 출생 순간을 라이브러리 절입 시각(UTC+8 기준)과 비교
    - 음력 ↔ 양력: 한국천문연구원 기준 (korean-lunar-calendar)
    - 나이: 세는 나이 / 대운수: 반올림, 최소 1
    필요: lunar-javascript@1.7.3 (Solar, Lunar), korean-lunar-calendar@0.3.6 (KoreanLunarCalendar) */
 (function (root) {
-  const RULE_VERSION = '2.2';
+  const RULE_VERSION = '2.3';
   const LIBS = 'lunar-javascript@1.7.3, korean-lunar-calendar@0.3.6';
 
   /* ── 기본 표 ── */
@@ -215,14 +215,15 @@
     const tz = seoulToUtc(sy, sm, sd, hh, mm);
     // 한국 서머타임은 +10:00(표준 +9) 또는 +9:30(표준 +8:30)
     const stdOff = tz.off === 600 ? 540 : tz.off === 570 ? 510 : tz.off;
-    const dst = tz.off > stdOff;                                   // 서머타임 적용 중
-    const dstMin = dst ? tz.off - stdOff : 0;                      // 보통 60분
+    const dst = tz.off > stdOff;                                   // 서머타임 기간인지 (기록만)
+    const dstMin = 0;                                              // 규칙: 서머타임 보정 안 함 (기록된 시각을 표준시로 봄)
     const lonMin = stdOff === 540 ? 30 : 0;                        // UTC+9(135°) 시기만 127°30′ 기준 -30분
     const wall = Date.UTC(sy, sm - 1, sd, hh, mm);
+    const instant = wall - stdOff * 60000;                         // 기록 시각을 표준시로 본 실제 순간 (절입 비교용)
     const corrected = wall - (dstMin + lonMin) * 60000;            // 사주에 쓰는 보정 시각
 
     // 3) 연주·월주: 실제 순간(UTC)을 UTC+8로 바꿔 라이브러리 절입과 비교
-    const ecY = solarOf(tz.utc + 8 * 3600000).getLunar().getEightChar();
+    const ecY = solarOf(instant + 8 * 3600000).getLunar().getEightChar();
     // 4) 일주·시주: 보정 시각, 23시부터 다음 날 (sect 1)
     const ecD = solarOf(corrected).getLunar().getEightChar(); ecD.setSect(1);
     const gz = { year: ecY.getYear(), month: ecY.getMonth(), day: ecD.getDay(), hour: ecD.getTime() };
@@ -306,11 +307,11 @@
     // 11) 알림
     const cf = F(corrected), cMin = cf.h * 60 + cf.mi;
     const nearHour = mode === 'time' && [1,3,5,7,9,11,13,15,17,19,21,23].some(b => Math.abs(cMin - b * 60) <= 10 || Math.abs(cMin - b * 60 + 1440) <= 10);
-    const lc = solarOf(tz.utc + 8 * 3600000).getLunar();
-    const jieMin = Math.min(Math.abs(solarOf(tz.utc + 8 * 3600000).subtractMinute(lc.getPrevJie().getSolar())),
-                            Math.abs(lc.getNextJie().getSolar().subtractMinute(solarOf(tz.utc + 8 * 3600000))));
+    const lc = solarOf(instant + 8 * 3600000).getLunar();
+    const jieMin = Math.min(Math.abs(solarOf(instant + 8 * 3600000).subtractMinute(lc.getPrevJie().getSolar())),
+                            Math.abs(lc.getNextJie().getSolar().subtractMinute(solarOf(instant + 8 * 3600000))));
     const flags = { time_mode: mode, hour_boundary: nearHour, term_boundary: jieMin <= 120,
-                    dst_nonexistent_time: tz.nonexistent, dst_ambiguous_time: tz.ambiguous,
+                    dst_nonexistent_time: false, dst_ambiguous_time: false,
                     strength_rule_verified: verifiedStrength, yong_rule_verified: !strong || (strength === '신강' && (groups.관성 > 0 || groups.식상 > 0)) };
 
     return {
@@ -318,7 +319,7 @@
       input: { ...inp, now: undefined, solar_date: `${sy}-${pad(sm)}-${pad(sd)}`,
                lunar_date: `${lunar.y}-${pad(lunar.m)}-${pad(lunar.d)}${lunar.leap ? ' (윤달)' : ''}` },
       time: { recorded: mode === 'unknown' ? '모름(12:00 간주)' : mode === 'sijin' ? `${ZHI[inp.sijin]}時` : rec,
-              utc_offset: `+${pad(Math.floor(tz.off / 60))}:${pad(tz.off % 60)}`, dst, dst_correction_min: -dstMin,
+              utc_offset: `+${pad(Math.floor(stdOff / 60))}:${pad(stdOff % 60)}`, dst_period: dst, dst_correction_min: 0,
               longitude_correction_min: -lonMin, corrected: `${ymd(corrected)} ${hm(corrected)}`, day_boundary: '23:00' },
       gz, P, dayGan: dg, yinyang, elements, groups,
       strength: { label: strength, deukryeong, deukji, deukse, seCount },

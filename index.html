@@ -342,7 +342,7 @@ document.querySelectorAll('[name=tm]').forEach(r => r.onchange = () => { const v
 const ADMIN = /[?&]admin=1/.test(location.search);
 function calcBasis(){
   const c = R.calc, t = c.time, mode = c.flags.time_mode;
-  const when = mode === 'unknown' ? '출생 시간 모름 (12:00 기준 추정)' : mode === 'sijin' ? `${t.recorded} 기준` : `기록 ${t.recorded}${t.dst ? ' (서머타임 -60분)' : ''} → 보정 ${t.corrected.slice(0,10) === c.input.solar_date ? t.corrected.slice(11) : t.corrected.slice(5).replace('-','/')}`;
+  const when = mode === 'unknown' ? '출생 시간 모름 (12:00 기준 추정)' : mode === 'sijin' ? `${t.recorded} 기준` : `기록 ${t.recorded} → 보정 ${t.corrected.slice(0,10) === c.input.solar_date ? t.corrected.slice(11) : t.corrected.slice(5).replace('-','/')}`;
   return `${when} · 동경 127°30′ 기준 보정 · 23시 일주 변경 · 규칙 v${c.rule_version}`;
 }
 function calcNotices(){
