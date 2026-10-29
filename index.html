@@ -716,7 +716,7 @@ function summaryRows(){
     ['건강운', S.c7[R.weak]],
     ['대운', S.c8.replace('{season}', C.ch8.season[R.cur.g].name).replace('{short}', C.ch8.season[R.cur.g].short)],
     ['3년 흐름', S.c9.replace('{k1}', kw(R.nowY)).replace('{k2}', kw(R.nowY+1)).replace('{k3}', kw(R.nowY+2))],
-    ['개운법', S.c10.replace('{color}', ({'빨강':'빨간색','노랑':'노란색','초록':'초록색','검정':'검정색'}[L.color.split(',')[0].trim()] || L.color.split(',')[0].trim())).replace('{yong}', ELK[R.yEl]).replace('{challenge}', C.ch10.challenge[R.yEl][0].match(/<b>"?(.*?)"?<\/b>/)[1])]
+    ['개운법', (() => { const y = R.yEl, k = ELK[y], short = k[0]; return S.c10.replaceAll('{yong}', k).replace('{iyeora}', josa(short, '이라', '라').slice(1)).replace('{short}', short).replace('{eunneun}', josa(short, '은', '는').slice(1)).replace('{tcolor}', S.tcolor[y]).replace('{dir}', S.dir[y]).replace('{num}', S.num[y]); })()]
   ];
 }
 

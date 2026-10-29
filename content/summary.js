@@ -55,5 +55,9 @@ C.sum = {
  },
  c8: '지금은 "{season}"이에요. {short}',
  c9: '앞으로 3년은 "{k1} → {k2} → {k3}"의 흐름이에요.',
- c10: '{color}을 가까이하고, "{challenge}"로 {yong} 기운을 채워보세요.'
+ // 근거만: 용신(분석기 계산) + 전통 오행 배속(색·방향·수). 창작한 습관 이름은 넣지 않음
+ c10: '용신이 {yong}{iyeora} {yong} 기운을 채우면 도움이 돼요. 오행에서 {short}{eunneun} {tcolor}, {dir}, 숫자 {num}에 해당해요.',
+ tcolor: { wood:'청색(푸른색)', fire:'적색(붉은색)', earth:'황색(노란색)', metal:'백색(흰색)', water:'흑색(검은색)' },
+ dir: { wood:'동쪽', fire:'남쪽', earth:'중앙', metal:'서쪽', water:'북쪽' },
+ num: { wood:'3·8', fire:'2·7', earth:'5·10', metal:'4·9', water:'1·6' }
 };
