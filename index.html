@@ -374,7 +374,7 @@ $('f').onsubmit = e => {
   if (!y) { ferr('생년월일을 입력해 주세요.'); return; }
   const tm = document.querySelector('[name=tm]:checked').value;
 
-  // 사주 분석기 (../사주분석기/saju-analyzer.js, 규칙: 사주분석기_규칙서.md)
+  // 사주 분석기 (engine/saju-analyzer.js, 규칙: 사주분석기_규칙서.md)
   let calc;
   try {
     calc = SajuCalc.calculate({ calendar: cal, y, m, d, gender,
@@ -403,7 +403,9 @@ function analyze(name, gender, married, calc){
   const yEl = calc.yong.fiveGods.용신;
   const weak = Object.keys(cnt).reduce((a,b) => cnt[b] < cnt[a] ? b : a);
   // 넘치는 기운은 용신·희신을 뺀 오행 중에서 (약한 사주는 용신=일간 오행이라 개수로만 고르면 겹침)
-  const excess = Object.keys(cnt).filter(k => k !== yEl && k !== calc.yong.fiveGods.희신).reduce((a,b) => cnt[b] > cnt[a] ? b : a);
+  // 넘치는 기운: 실제로 개수가 가장 많고(3개 이상) 용신·희신이 아닌 오행만. 해당 없으면 null (문장 생략)
+  const maxC = Math.max(...Object.values(cnt));
+  const excess = maxC >= 3 ? (Object.keys(cnt).find(k => cnt[k] === maxC && k !== yEl && k !== calc.yong.fiveGods.희신) || null) : null;
 
   // 대운
   const nowY = new Date().getFullYear();
@@ -413,7 +415,7 @@ function analyze(name, gender, married, calc){
     yong: EL[d.gz[0]] === yEl || EL[d.gz[1]] === yEl }));
   const ci = Math.max(0, dayun.findIndex(d => d.now));
   const cur = dayun[ci], past = ci > 0 ? dayun[ci-1] : null;
-  // 전성기는 20년 안의 대운만, 없으면 10년 안에서 부족한 기운이 들어오는 해
+  // 전성기는 20년 안의 용신 대운만, 없으면 10년 안에서 용신이 들어오는 해
   const peak = dayun.find(d => d.yong && d.sy > nowY && d.sy <= nowY + 20) || null;
   const peakYear = [1,2,3,4,5,6,7,8,9,10].map(i => nowY + i).find(y => { const gz = yearGZ(y); return EL[gz[0]] === yEl || EL[gz[1]] === yEl; }) || null;
 
@@ -497,7 +499,7 @@ function renderPreview(){
       <h3>지금 ${n}님은 '${C.ch8.season[R.cur.g].name}'을 지나고 있어요</h3>
       <div class="dy">${R.dayun.slice(0,8).map(d => `<div class="${d.now?'now':''}"><b>${d.ko}</b>${d.age}세~${d.now?'<br>지금':''}</div>`).join('')}</div>
       ${paras(C.ch8.now[R.cur.g].slice(0,1))}
-      ${R.cur.yong ? `<p>그리고 지금이 바로 ${n}님에게 부족한 기운이 채워지는 시기예요.</p>` : pk ? `<p>그리고 ${n}님에게 부족한 기운이 채워지는 다음 전성기는 <b class="bl">${pk.age}세</b>부터 시작돼요.</p>` : R.peakYear ? `<p>그리고 <b class="bl">${R.peakYear}년</b>에 ${n}님에게 부족한 기운이 채워지는 해가 와요.</p>` : ''}
+      ${R.cur.yong ? `<p>그리고 지금이 바로 ${n}님을 돕는 기운(용신)이 들어와 있는 시기예요.</p>` : pk ? `<p>그리고 ${n}님을 돕는 기운(용신)이 들어오는 다음 전성기는 <b class="bl">${pk.age}세</b>부터 시작돼요.</p>` : R.peakYear ? `<p>그리고 <b class="bl">${R.peakYear}년</b>에 ${n}님을 돕는 기운(용신)이 들어오는 해가 와요.</p>` : ''}
       <div class="lock-wrap"><div class="blur">${paras(C.ch8.now[R.cur.g].slice(1))}</div>
       <div class="lock-over"><span>🔒 이 계절의 과제와 다음 전성기</span></div></div></div>`;
 
@@ -625,11 +627,11 @@ function buildChapters(){
        ${H('처음 질문에 대한 답')}${P_(c1.recap[ANS >= 2 ? 'many' : 'few'].replace('{y}', ANS))}
        ${H(TIP)}${P_(C.act.c1.replace('{img}', C.meta[R.dg].img))}`],
     ['c2','02','사주 강약과 나를 돕는 기운', R.strengthLabel + ' 사주',
-      `${KB([`{n}님은 <b>${R.strengthLabel}</b> 사주예요`, `나를 돕는 기운은 <b>${ELK[R.yEl]}</b>, 넘치는 기운은 <b>${iyeyo(ELK[R.excess])}</b>`, R.strong ? '넘치는 힘을 밖으로 쓸수록 운이 순환해요.' : '나에게 맞는 환경과 사람을 고를수록 운이 열려요.'])}
+      `${KB([`{n}님은 <b>${R.strengthLabel}</b> 사주예요`, R.excess ? `나를 돕는 기운은 <b>${ELK[R.yEl]}</b>, 많아서 덜어내면 좋은 기운은 <b>${iyeyo(ELK[R.excess])}</b>` : `나를 돕는 기운(용신)은 <b>${iyeyo(ELK[R.yEl])}</b>`, R.strong ? '넘치는 힘을 밖으로 쓸수록 운이 순환해요.' : '나에게 맞는 환경과 사람을 고를수록 운이 열려요.'])}
        ${P_(c2.intro[0])}${P_(c2.intro[1])}
        ${H(R.strengthLabel + ' 사주')}${STRENGTH_NOTE[R.strengthLabel] ? P_(STRENGTH_NOTE[R.strengthLabel]) : ''}${paras([c2.strong[s].p[0], c2.strong[s].p[1], c2.strong[s].p[3]])}${P_(c2.life[s][0])}
        ${H('나를 돕는 기운 · ' + ELK[R.yEl])}${paras(c2.yong[R.yEl].slice(0,2))}${P_(c2.time[R.yEl])}${P_(c2.lack[R.yEl])}
-       ${H('넘치는 기운과 비어 있는 기운')}${P_(c2.excess[R.excess])}${zero.map(k => P_(c1.none[k])).join('')}
+       ${R.excess || zero.length ? H(R.excess && zero.length ? '넘치는 기운과 비어 있는 기운' : R.excess ? '넘치는 기운' : '비어 있는 기운') : ''}${R.excess ? P_(c2.excess[R.excess]) : ''}${zero.map(k => P_(c1.none[k])).join('')}
        ${hapSection()}
        ${H(TIP)}${P_(C.act.c2.replace('{yong}', ELK[R.yEl]).replace('{habit}', L.habit))}`],
     ['c3','03','재물운', R.money.type,
@@ -689,16 +691,16 @@ function buildChapters(){
        ${H('3년의 전략')}${P_(c9.key.replace('{k1}', kw(R.nowY)).replace('{k2}', kw(R.nowY+1)).replace('{k3}', kw(R.nowY+2)))}${P_(c9.strat[s])}${P_(c9.newyear[s][0])}
        ${H(TIP)}${P_(C.act.c9.replace('{y1}', R.nowY).replace('{y2}', R.nowY+1).replace('{y3}', R.nowY+2))}`],
     ['c10','10','개운법', `${ELK[R.yEl]} 기운 채우기`,
-      `${KB([`채울 기운 · <b>${ELK[R.yEl]}</b>`, `행운의 색 · ${L.color}`, `30일 챌린지 · ${c10.challenge[R.yEl][0].match(/<b>(.*?)<\/b>/)[1]}`])}
-       ${P_(c10.intro)}<table class="tbl"><tr><td>행운의 색</td><td>${L.color}</td></tr><tr><td>좋은 방향</td><td>${L.dir}</td></tr>
-       <tr><td>행운의 숫자</td><td>${L.num}</td></tr><tr><td>도움 되는 음식</td><td>${L.food}</td></tr>
-       <tr><td>기운 채우는 곳</td><td>${L.place}</td></tr><tr><td>추천 습관</td><td>${L.habit}</td></tr></table>
+      `${KB([`채울 기운 · <b>${ELK[R.yEl]}</b>`, `색 · ${L.color.split(' ')[0]}`, `방향 · ${L.dir} · 숫자 ${L.num}`])}
+       ${P_(c10.intro)}<table class="tbl"><tr><td>색 (오행 배속)</td><td>${L.color}</td></tr><tr><td>방향 (오행 배속)</td><td>${L.dir}</td></tr>
+       <tr><td>숫자 (오행 배속)</td><td>${L.num}</td></tr><tr><td>맛·음식 (오행 배속)</td><td>${L.food}</td></tr>
+       <tr><td>장소 (생활 제안)</td><td>${L.place}</td></tr><tr><td>습관 (생활 제안)</td><td>${L.habit}</td></tr></table>
        ${paras(L.p)}${P_(c10.yong2[R.yEl])}
        ${H('곁에 두면 좋은 사람')}${P_(c10.people[R.yEl])}
        ${H('공간 개운')}${P_(c10.space[R.yEl])}
        ${H('말 습관 개운')}${P_(c10.talk[R.dom])}
-       ${H('30일 개운 챌린지')}${paras(c10.challenge[R.yEl])}
-       ${H(TIP)}${P_(C.act.c10.replace('{color}', L.color).replace('{dir}', L.dir.replace(/ \(.*\)/,'')))}
+       ${H('30일 생활 제안')}${paras(c10.challenge[R.yEl])}
+       ${H(TIP)}${P_(C.act.c10.replace('{color}', L.color.split(' ')[0]).replace('{dir}', L.dir === '중앙' ? '집 안 가장 편한 자리에서' : L.dir + '을 향해'))}
        ${H('마지막으로')}${P_(C.act.last)}`]
   ].map(c => (c[4] = c[4], c));
 }
